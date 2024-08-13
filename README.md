@@ -39,5 +39,6 @@ $ ansible -i hosts/tardis/stage/hosts all -b -m shell -a 'yum clean all ; rm -rf
 
 Ansible command to deploy in prod in east region 
 
-```ansible-playbook -i hosts/tardis/green -l hc-east -e site_region=e1 hc-go.yml -t deploy
+```
+ansible-playbook -i hosts/tardis/green -l hc-east -e site_region=e1 hc-go.yml -t deploy
 ```
