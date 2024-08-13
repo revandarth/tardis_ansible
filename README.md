@@ -1,3 +1,7 @@
+
+The repository is a demonstration of ansible playbooks for deploying the following open source [http_collector_go](https://github.com/Comcast/HTTP-Collector) service on both AWS ec2 server and EKS (kubernetes) cluster.
+
+
 # Ansible
 
 ## ~/.ansible.cfg example
