@@ -1,0 +1,441 @@
+---
+- name: include all vars files
+  include_vars: "{{item}}"
+  with_items:
+    - ../../../config/hc-go.yml
+    - ../../../config/versions.yml
+    - ../../../config/creds.yml
+    - ../../../config/common.yml
+    - ../defaults/main.yml
+  tags:
+    - always
+
+- name: setting facts for common_gslbs
+  set_fact:
+     "{{ item.key }}": "{{ item.value[site_color] | default (item.value['default'])}}"
+  loop: "{{ lookup('dict', common_gslbs) }}"
+  tags:
+    - always
+    
+- name: setting facts for k8s_common_gslbs 
+  set_fact:
+     "{{ item.key }}": "{{ item.value[site_color] | default (item.value['default'])}}"
+  loop: "{{ lookup('dict', k8s_common_gslbs) }}"
+  tags:
+    - always
+
+- name: setting facts for hc
+  set_fact:
+     "{{ item.key }}": "{{ item.value[site_color] | default (item.value['default'])}}"
+  loop: "{{ lookup('dict', hc) }}"
+  tags:
+    - always
+
+- name: Make sure site_role_name is correct
+  fail: msg="{{site_role_name}} is incorrect. Please select proper role name ex 'hc' and run again."
+  when: site_role_name != 'hc'
+  tags:
+    - always
+- name: Make sure site_color is correct
+  fail: msg="{{site_color}} is incorrect. Please select proper color ex 'devops' or 'green' and run again."
+  when: site_color not in ['green','devops']
+  tags:
+    - always
+
+- name: Make sure prod_weight and canary_weight is correct
+  fail: msg="prod_weight and canary_weight is incorrect. Please make sure sum of prod_weight and canary_weight is equal to 100 current sum "{{prod_weight | int + canary_weight | int}}" correct the weight and run again."
+  when: (prod_weight | int < 100 or canary_weight | int > 100 or prod_weight | int > 100) and (prod_weight | int + canary_weight | int) != 100
+  tags:
+    - update_traffic
+
+- name: general fact
+  set_fact:
+    version: "{{hc_version.split('hc-')[1]}}"
+  tags:
+    - deploy
+
+- debug:
+    msg: "hc_version = ##{{hc_version}}"
+  tags:
+    - deploy
+
+##############################################################################################################################
+
+- name: set kubectl config use-context for eks
+  shell: "/usr/local/bin/kubectl config use-context arn:aws:eks:{{'ap-southeast-1' if site_region == 's1' else 'ap-southeast-2'}}:{{aws_account}}:cluster/{{cluster_name}}"
+  tags:
+    - always
+  when: site_region[:2] in ['s1','s2']
+
+- name: set kubectl config use-context for eks
+  shell: "/usr/local/bin/kubectl config use-context arn:aws:eks:{{'us-west-2' if site_region == 'w2' else 'us-east-1'}}:{{aws_account}}:cluster/{{cluster_name}}"
+  tags:
+    - always
+  when: site_region[:2] in ['e1','w2'] 
+
+- name: set kubectl config use-context for eks
+  shell: "/usr/local/bin/kubectl config use-context arn:aws:eks:{{'eu-central-1' if site_region == 'c1' else 'eu-west-1'}}:{{aws_account}}:cluster/{{cluster_name}}"
+  tags:
+    - always
+  when: site_region[:2] in ['c1','w1'] 
+
+- name: find existing Namespace, if any
+  k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{site_color}}"
+  register: kube_resource_previous_namespace
+  tags:
+    - always
+
+- name: Display existing namespace, if any
+  fail: msg="{{site_color+' namespace does not exist?. Please create namespace manually and run the role again.'}}"
+  when: not kube_resource_previous_namespace.resources
+  tags:
+    - always
+
+- name: find existing deployment, if any
+  k8s_info:
+    api_version: v1
+    kind: Deployment
+    name: "{{deployment_name}}"
+    namespace: "{{ site_color }}"
+  register: kube_resource_previous_deployment
+  tags:
+    - always
+
+- name: Display existing deployment, if any
+  debug:
+    msg: "{{'do you want to update/rollback existing '+kube_resource_previous_deployment.resources[0].metadata.name+' deployment?' if kube_resource_previous_deployment.resources else deployment_name+' deployment does not exist, do you want to create '+deployment_name+ ' deployment?'}}"
+  when: kube_resource_previous_namespace.resources
+  tags:
+    - [never,precheck_deploy]
+  
+##############################################################################################################################
+
+- name: Create a Service object by reading the definition from a file
+  k8s:
+    state: present
+    definition: "{{ lookup('template', '../templates/'+ item +'.j2') }}"
+    append_hash: yes
+  with_items:
+    - cm-hc.yml
+  tags:
+    - deploy
+
+- name: Set the resources facts
+  set_fact:
+    kube_resource_configmaps: "{{ kube_resource_configmaps | combine( { item: lookup('template', '../templates/'+item+'.yml.j2') | from_yaml } ) }}"
+  with_items:
+      - cm-hc
+  tags:
+    - deploy
+
+- name: generate sidecar inject-values yml
+  template:
+    src: "{{item}}.yml.j2"
+    dest: "/tmp/inject-values-{{deployment_name}}-{{site_color}}.yml"
+  with_items:
+    - ../../../config/kubernetes/inject-values
+  tags:
+    - deploy
+
+- name: copy sidecar inject-config yml
+  copy:
+    src: ../../../config/kubernetes/inject-config{{'-eu' if site_country in ['AP','EU'] else '' }}.yml
+    dest: "/tmp/inject-config-{{site_color}}.yml"
+  tags:
+    - deploy
+
+- name: generate deployment yml
+  template:
+    src: "{{item}}.yml.j2"
+    dest: "/tmp/dep-{{deployment_name}}-{{site_color}}.yml"
+  with_items:
+    - dep-hc
+  tags:
+    - deploy
+
+- name: set inject istio-proxy/sidecar
+  shell: "/usr/local/bin/istioctl kube-inject
+    --injectConfigFile /tmp/inject-config-{{site_color}}.yml 
+    --valuesFile /tmp/inject-values-{{deployment_name}}-{{site_color}}.yml
+    --filename /tmp/dep-{{deployment_name}}-{{site_color}}.yml
+    | /usr/local/bin/kubectl apply -f -"
+    
+  tags:
+    - deploy
+
+- name: Create a deployment object by reading the definition from a file
+  k8s:
+    state: present
+    definition: "{{ lookup('template', '../templates/'+ item +'.j2') }}"
+  with_items:
+    - svc-hc.yml
+  tags:
+    - deploy
+
+- name: Display existing deployment, if any
+  fail: msg="{{deployment_name+' deployment does not exist'}}"
+  when: not kube_resource_previous_deployment.resources
+  tags:
+    - [never,update_traffic,update_hpa,rollback,precheck_update_traffic,precheck_rollback,precheck_update_hpa]
+
+- name: Display update traffic 
+  debug:
+    msg: "{{'do you want to update '+deployment_name+ ' with prod_weight: '+prod_weight | string+' and canary_weight: '+canary_weight | string}}"
+  when: kube_resource_previous_deployment.resources
+  tags:
+    - [never,precheck_update_traffic]
+
+- name: Create a default virtualService object by reading the definition from a file
+  k8s:
+    state: present
+    definition: "{{ lookup('template', '../templates/'+ item +'.j2') }}"
+  with_items:
+    - vs-hc-default.yml
+    - istio-gateway-hc.yml
+    - destinationrules-hc.yml
+    - vs-hc-xwificonfig.yml
+    - envoyfilter-hc.yml
+    - vs-hc-ltenotify.yml
+    - vs-hc-ltereport.yml
+    - vs-hc-ltebkpperiodicreport.yml
+    - vs-hc-ltegwperiodicreport.yml
+    - vs-hc-ltessnotifyreports.yml
+  tags:
+    - deploy
+    - update_traffic
+
+- name: Create a virtualService object by reading the definition from a file
+  k8s:
+    state: present
+    definition: "{{ lookup('template', '../templates/'+ item +'.j2') }}"
+  with_items:
+    - vs-hc-webpareports.yml
+    - vs-hc-notification.yml
+    - vs-hc-wifiactive.yml
+    - vs-hc-odpconfigreports.yml
+    - vs-hc-albummonitor.yml
+    - vs-hc-vdsl.yml
+    - vs-hc-voipdiagnosticsreports.yml
+    - vs-hc-ethbackhaul.yml
+    - vs-hc-cujoswapevents.yml
+    - vs-hc-meshhook.yml
+  when: site_color != 'red' and site_country in ['EU','US','AP']
+  tags:
+    - deploy
+    - update_traffic
+
+- name: Create a virtualService object by reading the definition from a file for only yellow
+  k8s:
+    state: present
+    definition: "{{ lookup('template', '../templates/'+ item +'.j2') }}"
+  with_items:
+    - vs-hc-xpcrebootreports.yml
+    - vs-hc-xpctransactionreports.yml
+    - vs-hc-xpcsyncreports.yml
+  when: site_color == 'yellow' 
+  tags:
+    - deploy
+    - update_traffic
+
+- name: Create a virtualService object by reading the definition from a file for only green
+  k8s:
+    state: present
+    definition: "{{ lookup('template', '../templates/'+ item +'.j2') }}"
+  with_items:
+    - vs-hc-xpchook-green.yaml
+    - vs-hc-cujo_pc.yml
+    - vs-hc-cujo_pc5mins.yml
+    - vs-hc-cujo_pt.yml
+    - vs-hc-cujo_security.yml
+    - vs-hc-cujo_hooks.yml
+    - vs-hc-plume.yml
+  when: site_color == 'green' and site_country in ['EU','US']
+  tags:
+    - deploy
+    - update_traffic
+    
+- name: Create a virtualService object by reading the definition from a file for only APAC
+  k8s:
+    state: present
+    definition: "{{ lookup('template', '../templates/'+ item +'.j2') }}"
+  with_items:
+    - vs-hc-xpchook-green.yaml
+    - vs-hc-cujoswapevents.yml
+    - vs-hc-xpctransactionreports.yml
+    - vs-hc-notification.yml
+    - vs-hc-xpcrebootreports.yml
+    - vs-hc-cujo_hooks.yml
+    - vs-hc-cujo_security.yml
+    - vs-hc-odpconfigreports.yml
+    - vs-hc-cujo_pc.yml
+    - vs-hc-cujo_pc5mins.yml
+    - vs-hc-cujo_pt.yml
+  when: site_color == 'green' and site_country == 'AP'
+  tags:
+    - deploy
+    - update_traffic
+
+- name: Create a Service and virtualService object for xdassyncingress by reading the definition from a file for "{{ site_color }}"
+  k8s:
+    state: present
+    definition: "{{ lookup('template', '../templates/'+ item +'.j2') }}"
+  with_items:
+    - vs-hc-xdassyncingress.yml
+    - svc-xdassyncingress.yml
+  tags:
+    - deploy
+    - update_traffic
+    - create_xdassyncingress
+
+- name: Display update hpa 
+  debug:
+    msg: "{{'do you want to update '+deployment_name+ 'with HPA replicas: '+min_replicas | string}}"
+  when: kube_resource_previous_deployment.resources
+  tags:
+    - [never,precheck_update_hpa]
+
+- name: Create a HorizontalPodAutoscaler object by reading the definition from a file
+  k8s:
+    state: present
+    definition: "{{ lookup('template', '../templates/'+ item +'.j2') }}"
+  with_items:
+    - hpa-hc.yml
+  tags:
+    - deploy
+    - update_hpa
+
+- name: Display existing deployment, if any
+  debug:
+    msg: "{{'do you want to delete existing '+kube_resource_previous_deployment.resources[0].metadata.name+' deployment?' if kube_resource_previous_deployment.resources else site_role_name+' deployment does not exist'}}"
+  tags:
+    - [never,deletedeployment]
+
+- name: Remove an existing deployment
+  shell: "/usr/local/bin/kubectl delete {{item.Kind}} -n {{ 'monitoring' if item.Kind == 'ServiceMonitor' else site_color }} {{item.name}}"
+  when: deploy_name == "prod" and kube_resource_previous_deployment.resources
+  with_items:
+    - Kind: Deployment
+      name: "{{site_role_name}}-{{deploy_name}}"
+    - Kind: Service
+      name: "{{site_role_name}}"
+    - Kind: HorizontalPodAutoscaler
+      name: "{{deployment_name}}"
+    - Kind: Gateway
+      name: "{{site_role_name}}"
+    - Kind: VirtualService
+      name: "{{site_role_name}}"
+    - Kind: VirtualService
+      name: "{{site_role_name}}-notification"
+    - Kind: VirtualService
+      name: "{{site_role_name}}-configreports"
+    - Kind: VirtualService
+      name: "{{site_role_name}}-webpareports"
+    - Kind: VirtualService
+      name: "{{site_role_name}}-wifiactivereports"
+    - Kind: VirtualService
+      name: "{{site_role_name}}-xpcrebootreports"
+    - Kind: VirtualService
+      name: "{{site_role_name}}-xpcsyncreports"
+    - Kind: VirtualService
+      name: "{{site_role_name}}-xpctransactionreports"
+    - Kind: VirtualService
+      name: "{{site_role_name}}-xwificonfig"
+    - Kind: VirtualService
+      name: "{{site_role_name}}-vdslreports"
+    - Kind: VirtualService
+      name: "{{site_role_name}}-monitor"
+    - kind: DestinationRule
+      name: "{{site_role_name}}"
+    - Kind: PodDisruptionBudget
+      name: "{{site_role_name}}"
+    - Kind: EnvoyFilter
+      name: "{{site_role_name}}-envoyfilter"
+    - Kind: VirtualService
+      name: "{{site_role_name}}-eth_backhaul_reports"
+  tags:
+    - [never,deletedeployment]
+
+- name: Remove an existing Service and virtualService object for xdassyncingress
+  shell: "/usr/local/bin/kubectl delete {{item.Kind}} -n {{ site_color }} {{item.name}}"
+  when: deploy_name == "prod"
+  with_items:
+    - Kind: Service
+      name: "xdassyncingress"
+    - Kind: VirtualService
+      name: "{{site_role_name}}-xdassyncingress"
+  tags:
+    - [never,deletedeployment,delete_xdassyncingress]
+
+- name: list configmaps "{{deployment_name}}-conf"
+  shell: /usr/local/bin/kubectl get configmaps --sort-by=.metadata.creationTimestamp -n {{site_color}} | grep {{deployment_name}}-conf | tac | tail -n +4 | awk '{print $1}'
+  register: list_configmap
+  tags: always   
+
+- name: delete configmaps "{{deployment_name}}-conf"
+  shell: /usr/local/bin/kubectl delete configmaps {{item}} -n {{site_color}}
+  with_items: "{{list_configmap.stdout_lines}}"
+  tags: deploy
+
+- name: Remove an existing deployment
+  shell: "/usr/local/bin/kubectl delete {{item.Kind}} -n {{ 'monitoring' if item.Kind == 'ServiceMonitor' else site_color }} {{item.name}}"
+  when: deploy_name == "canary" and kube_resource_previous_deployment.resources
+  with_items:
+    - Kind: Deployment
+      name: "{{site_role_name}}-{{deploy_name}}"
+    - Kind: HorizontalPodAutoscaler
+      name: "{{deployment_name}}"
+  tags:
+    - [never,deletedeployment]
+
+########################################################################################################################################################################
+
+- name: sleep for 10 seconds and continue with play
+  wait_for:
+    timeout: 10
+  tags:
+    - deploy
+
+- name: Fetch a specific deployment by name
+  k8s_info:
+    api_version: v1
+    kind: Deployment
+    namespace: "{{site_color}}"
+    name: "{{deployment_name}}"
+  register: deployments
+  tags:
+    - deploy
+
+- name: check deployment status
+  fail: msg="Deployment is not completed successfully"
+  when: deployments.resources[0].status.conditions[0].status=="true" and deployments.resources[0].status.conditions[1].message is match("ReplicaSet.*has successfully progressed.")
+  tags:
+    - deploy
+
+- include_tasks: set_owner.yml
+  tags:
+    - deploy
+
+- include_tasks: rollback.yml
+  tags:
+    - [never,rollback,precheck_rollback]
+
+- meta: flush_handlers
+  tags:
+    - deploy
+
+####### health check ###########
+- name: "Running health_check.yml"
+  include: health_check.yml
+  when: site_role_name != 'devci'
+  tags:
+    - deploy
+
+####### slack notifications check ###########
+- name: "Running slack_notification.yml"
+  include: slack_notification.yml
+  when: site_role_name != 'devci' and site_color in ['red','yellow','devops']
+  tags:
+    - deploy

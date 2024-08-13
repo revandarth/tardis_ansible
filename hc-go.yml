@@ -1,0 +1,7 @@
+---
+- name: setup and deploy_hc
+  hosts: hc
+  become: yes
+  serial: 1
+  roles:
+      - http_collector-go

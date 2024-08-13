@@ -1,0 +1,36 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{site_role_name}}-notification
+  namespace: {{site_color}}
+spec:
+  gateways:
+  - {{site_role_name}}
+  hosts:
+    - {{odp_notificationreports}}
+  http:
+  - headers:
+      request:
+        add:
+          X-key: '%REQ(X-Webpa-Device-Id)%'
+    match:
+      - uri:
+         regex: ^\/.*
+    name: webpareports
+    rewrite:
+      uri: /v2/nolim/rdkchangeevents      
+    route:
+    - destination:
+        host: {{site_role_name}}
+        port:
+          name: http-{{site_role_name}}
+          number: {{hc_port}}
+        subset: prod
+      weight: {% if prod_weight < 100 %}{{prod_weight |int}}{% else %}{{prod_weight | int - canary_weight | int }}{% endif %}{{''}}
+    - destination:
+        host: {{site_role_name}}
+        port:
+          name: http-{{site_role_name}}
+          number: {{hc_port}}
+        subset: canary
+      weight: {{canary_weight | int}}

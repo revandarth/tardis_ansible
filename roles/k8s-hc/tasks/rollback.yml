@@ -1,0 +1,44 @@
+- name: Get the deployment history
+  shell: /usr/local/bin/kubectl -n {{site_color}} rollout history deployment/{{deployment_name}}
+  register: deploy_revision
+  tags:
+    - [never, precheck_rollback]
+
+- debug:
+    msg: "{{ 'Make sure you want to rollback to correct revision '+ deploy_revision.stdout_lines | string if revision is defined else 'Make sure you want to rollback to previous version' }}"
+  tags:
+    - [never, precheck_rollback]
+
+- name: rollback the deployment to previous version
+  shell: /usr/local/bin/kubectl -n {{site_color}} rollout undo deployment/{{deployment_name}}
+  when: revision is not defined
+  tags:
+    - rollback
+
+- name: rollback the deployment to {{revision}} version
+  shell: /usr/local/bin/kubectl -n {{site_color}} rollout undo deployment/{{deployment_name}} --to-revision={{revision}}
+  when: revision is defined
+  tags:
+    - rollback
+
+- name: sleep for 10 seconds and continue with play
+  wait_for:
+    timeout: 10
+  tags:
+    - rollback
+
+- name: Fetch a specific deployment by name
+  k8s_info:
+    api_version: v1
+    kind: Deployment
+    namespace: "{{site_color}}"
+    name: "{{deployment_name}}"
+  register: deployments
+  tags:
+    - rollback
+
+- name: check deployment rollback status
+  fail: msg="Deployment is not rollbacked successfully"
+  when: deployments.resources[0].status.conditions[0].status=="true" and deployments.resources[0].status.conditions[1].message is match("ReplicaSet.*has successfully progressed.")
+  tags:
+    - rollback

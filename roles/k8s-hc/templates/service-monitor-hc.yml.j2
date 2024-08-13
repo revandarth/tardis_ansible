@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{site_role_name}}-{{site_color}}
+  namespace: monitoring
+  labels:
+    app: {{site_role_name}}
+    release: prom-operator
+spec:
+  namespaceSelector:
+    matchNames:
+    - {{site_color}}
+  selector:
+    matchLabels:
+      app: {{site_role_name}}
+  endpoints:
+  - port: http-{{site_role_name}}
+    path: /metrics

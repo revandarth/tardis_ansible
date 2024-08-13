@@ -1,0 +1,36 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{site_role_name}}-odpcujopt
+  namespace: {{site_color}}
+spec:
+  gateways:
+  - {{site_role_name}}
+  hosts:
+    - {{cujo_pt_dns}}
+  http:
+  - headers:
+      request:
+        add:
+          X-key: '%REQ(X-Partner-Agent-Id)%'
+          X-key-prefix: pt
+    match:
+    - uri:
+        regex: ^\/.*
+    rewrite:
+      uri: /v2/nolim/PTProc
+    route:
+    - destination:
+        host: {{site_role_name}}
+        port:
+          name: http-{{site_role_name}}
+          number: {{hc_port}}
+        subset: prod
+      weight: {% if prod_weight < 100 %}{{prod_weight |int}}{% else %}{{prod_weight | int - canary_weight | int }}{% endif %}{{''}}
+    - destination:
+        host: {{site_role_name}}
+        port:
+          name: http-{{site_role_name}}
+          number: {{hc_port}}
+        subset: canary
+      weight: {{canary_weight | int}}

@@ -1,0 +1,8 @@
+---
+# kube_resource_UNSAFE_show_logs: true
+kube_resource_configmaps: {}
+kube_resource_secrets: {}
+deploy_name: "prod"
+deployment_name: "{{site_role_name}}-{{deploy_name}}"
+prod_weight: 100
+canary_weight: 0

@@ -1,0 +1,67 @@
+---
+- name: "check hc for {{site_color}}"
+  shell: "/usr/local/bin/kubectl rollout status deployment/{{ deployment_name }} -n {{ site_color }}"
+  register: rollout_result
+  retries: 60
+  delay: 5
+  until: rollout_result.rc == 0
+  tags:
+    - health_check
+    - deploy
+
+- name: Check deployment rollout status
+  debug:
+    msg: "Deployment rollout is successful"
+  when: rollout_result.rc == 0
+
+- name: Print deployment rollout failure
+  debug:
+    msg: "Deployment rollout failed"
+  when: rollout_result.rc != 0
+  tags:
+    - health_check
+    - deploy
+
+- name: "check hc for {{site_color}}"
+  uri:
+    url: "https://{{hc_region_gslb}}/version"
+    method: GET
+    validate_certs: no
+    body_format: json
+    status_code: 200
+    headers:
+      k8s-test: "{{ 'prod-test' if deployment_name == site_role_name+'-prod' else 'canary-test' }}"
+    return_content: yes
+  register: check_version
+  until: check_version.status == 200 
+  retries: 30
+  delay: 5
+  tags:
+    - health_check
+    - deploy
+
+
+- name: define facts for deployed version
+  set_fact:
+    deployed_version: "{{check_version.json.data.Version}}"
+  tags:
+    - health_check
+    - deploy
+
+
+- name: "version installed for {{site_project}}-hc for {{site_color}}"
+  debug:
+    msg: 
+      - "{{deployed_version}} == {{hc_version}}"
+  tags:
+    - health_check
+    - deploy
+
+
+- name: Check newly deployed pod health
+  fail: msg="{{version}} version pods are not deployed correctly"
+  when:
+    - deployed_version != hc_version
+  tags:
+    - health_check
+    - deploy

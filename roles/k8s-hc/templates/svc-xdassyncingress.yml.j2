@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: xdassyncingress
+  name: xdassyncingress
+  namespace: {{site_color}}
+spec:
+  ports:
+  - name: http-xdassyncingress
+    port: {{hc_port}}
+    protocol: TCP
+    targetPort: {{hc_port}}
+  selector:
+    app: {{site_role_name}}

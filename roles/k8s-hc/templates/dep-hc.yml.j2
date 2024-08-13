@@ -1,0 +1,113 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{deployment_name}}
+  namespace: {{site_color}}
+  annotations:
+    kubernetes.io/change-cause: "{{hc_version +'-'+ change_cause if change_cause is defined else hc_version}}"
+spec:
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: {{site_role_name}}
+      canary: {% if deployment_name == site_role_name+'-prod' %}"false"
+      {% else %} "true"{% endif %}{{''}}
+  strategy:
+    rollingUpdate:
+      maxSurge: 30%
+      maxUnavailable: 10%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: {{site_role_name}}
+        version: {{hc_version}}
+        component: {{site_color}}
+        logtosplunk: "true"
+        canary: {% if deployment_name == site_role_name+'-prod' %}"false"
+        {% else %}"true"
+{% endif %}{{''}}
+      annotations:
+        prometheus.io/port: "8080"
+        prometheus.io/scrape: "true"
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+        proxy.istio.io/config: |-
+          holdApplicationUntilProxyStarts: true
+          proxyStatsMatcher:
+            inclusionPrefixes:
+            - "cluster.inbound|{{hc_port}}||"
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - arm64
+ {% if site_country in ['EU','AP'] %}                
+                - "worker-dd-ng"   
+ {% else %}
+                - "worker-dd-arm-ng"  
+ {% endif %} 
+      tolerations:
+      - effect: NoSchedule
+        key: dedicated
+        operator: Equal
+        value: arm
+      topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: {{site_role_name}}      
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: {{site_role_name}}
+      containers:
+      - name: {{site_role_name}}
+        image: '{{ ecr_url }}/hc:{{version | trim}}'
+        resources:
+          requests:
+            memory: {{requests_memory}}
+            cpu: {{requests_cpu}}
+          limits:
+            memory: {{maxlimits_memory}}
+            cpu: {{maxlimits_cpu}}
+        readinessProbe:
+          httpGet:
+            path: /healthz #/healthz
+            port: {{hc_port}}
+            scheme: HTTP
+          initialDelaySeconds: {{initialdelayseconds}}
+          periodSeconds: {{periodseconds}}
+          failureThreshold: {{failurethreshold}}
+        ports:
+        - containerPort: {{hc_port}}
+        volumeMounts:
+        - name: hc-config-volume
+          mountPath: /app/hc/conf
+          readOnly: true
+      imagePullSecrets:
+        - name: 'aws-reg-creds-{{site_color}}'
+      volumes:
+      - name: hc-config-volume
+        configMap:
+          items:
+          - key: config.json
+            path: config.json
+          name: {{ kube_resource_configmaps['cm-hc'] | k8s_config_resource_name }}
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "4"  

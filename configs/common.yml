@@ -1,0 +1,27 @@
+---
+common_gslbs:
+  etc_dir: 
+    default: "/etc/{{site_project}}"
+
+######### These dns are album NB dns  ######################################
+  odp_api_album_dns:
+    prod: 'odpapi.g.darth.net odpapicb-prod.tardis.darth.net'
+    default: 'odpapi-staging.gslb2.darth.com'
+  odp_api_proxy_cb_album_dns:
+    prod: 'odpapicb-p.gslb2.darth.com'
+    default: 'odpapi-staging.gslb2.darth.com'
+  odp_sync_album_dns:
+    prod: 'odpsync-aws.g.darth.net'
+    default: 'odpallsync-staging.gslb2.darth.com'
+
+####### These dns are album NB dns for xpc #################
+  xpc_api_album_dns:
+    prod: 'xpcapi.g.darth.net'
+    default: 'xpcapi-staging.gslb2.darth.com'
+  xpc_api_proxy_cb_album_dns:
+    prod: 'xpcapicb-p.gslb2.darth.com'
+    default: 'xpcapi-staging.gslb2.darth.com'
+  xpc_sync_album_dns:
+    prod: 'xpcsync.g.darth.net'
+    default: 'xpcallsync-staging.gslb2.darth.com'
+

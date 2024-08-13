@@ -1,0 +1,70 @@
+# -*- mode: conf -*-
+
+##################################
+# Groups - Groups based on groups
+##################################
+
+#####################################################################################################################################
+#####################################################################################################################################
+########## These servers are running in Openstack AS-A region but for prod usecases we created the DNS and other with E1d ##########
+#####################################################################################################################################
+#####################################################################################################################################
+
+[zoo:children]
+zoo-e1d
+
+[sparkm:children]
+sparkm-e1d
+
+[sparkw:children]
+sparkw-e1d
+
+####################################################
+####################################################
+##  XX        XX     DDDDDDDDDD      PPPPPPPPPPP  ##
+##   XX      XX      DD        DD    PP       PP  ##
+##    XX    XX       DD        DD    PP       PP  ##
+##     XX  XX        DD        DD    PP       PP  ##
+##       XX          DD        DD    PPPPPPPPPPP  ##
+##     XX  XX        DD        DD    PP           ##
+##    XX    XX       DD        DD    PP           ##
+##   XX      XX      DD        DD    PP           ##
+##  XX        XX     DDDDDDDDDD      PP           ##
+####################################################
+####################################################
+
+[zoo-e1d]
+tardiszoo-e1d-01.tardis.darth.net
+tardiszoo-e1d-02.tardis.darth.net
+tardiszoo-e1d-03.tardis.darth.net
+
+[sparkm-e1d]
+tardissparkm-e1d-01.tardis.darth.net
+tardissparkm-e1d-02.tardis.darth.net
+
+[sparkw-e1d]
+tardissparkw-e1d-01.tardis.darth.net
+tardissparkw-e1d-02.tardis.darth.net
+tardissparkw-e1d-03.tardis.darth.net
+tardissparkw-e1d-04.tardis.darth.net
+tardissparkw-e1d-05.tardis.darth.net
+tardissparkw-e1d-06.tardis.darth.net
+tardissparkw-e1d-07.tardis.darth.net
+tardissparkw-e1d-08.tardis.darth.net
+tardissparkw-e1d-09.tardis.darth.net
+tardissparkw-e1d-10.tardis.darth.net
+tardissparkw-e1d-11.tardis.darth.net
+tardissparkw-e1d-12.tardis.darth.net
+tardissparkw-e1d-13.tardis.darth.net
+tardissparkw-e1d-14.tardis.darth.net
+tardissparkw-e1d-15.tardis.darth.net
+tardissparkw-e1d-16.tardis.darth.net
+tardissparkw-e1d-17.tardis.darth.net
+tardissparkw-e1d-18.tardis.darth.net
+tardissparkw-e1d-19.tardis.darth.net
+tardissparkw-e1d-20.tardis.darth.net
+tardissparkw-e1d-21.tardis.darth.net
+tardissparkw-e1d-22.tardis.darth.net
+tardissparkw-e1d-23.tardis.darth.net
+tardissparkw-e1d-24.tardis.darth.net
+

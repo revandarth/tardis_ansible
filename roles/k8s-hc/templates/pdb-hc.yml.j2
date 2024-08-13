@@ -1,0 +1,12 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  labels:
+    app: {{site_role_name}} 
+  name: {{site_role_name}} 
+  namespace: {{site_color}} 
+spec:
+  maxUnavailable: "{{pdb_maxunavailable}}"
+  selector:
+    matchLabels:
+      app: {{site_role_name}}

@@ -1,0 +1,132 @@
+---
+# tasks file for xdas
+
+- name: include all vars files
+  include_vars: "{{item}}"
+  with_items:
+    - ../../../config/versions.yml
+    - ../../../config/kubernetes/hc-go.yml
+    - ../../../config/cqas.yml
+
+- name: "Ensure the yum package index is up to Date"
+  yum:
+    update_cache: yes
+    name: 'xap'
+    state: latest
+  when:
+    - site_color == 'qa'
+
+- name: setting facts for hc
+  set_fact:
+     "{{ item.key }}": "{{ item.value[site_color] | default (item.value['default'])}}"
+  loop: "{{ lookup('dict', hc) }}"
+
+
+- name: general fact
+  set_fact:
+    hc_package_dir: "/app/{{hc_version}}"
+    prev_hc_package_dir: '/app/{{prev_hc_version}}'
+    hc_dir: "/app/hc"
+
+- name: check directory exist
+  stat:
+    path: "{{hc_package_dir}}"
+  register: is_hc_dir
+
+- name: check previous http_collector directory exist
+  stat:
+    path: "{{ prev_hc_package_dir}}"
+  register: is_prev_hc_dir
+
+- name: check previous http_collector already archived
+  stat:
+    path: "{{ prev_hc_package_dir}}__{{timestamp}}.gz"
+  register: is_prev_hc_dir_gz
+
+- name: download hc
+  get_url: url={{ download_url }}/{{hc_version}}.tar.gz dest=/tmp
+  when: not is_hc_dir.stat.exists
+  tags:
+    - hc_download
+
+- name: create log directory for hc
+  file:
+    path: "{{item}}"
+    state: directory
+    owner: xplat
+    group: xplat
+    mode: 0755
+    recurse: yes
+  with_items:
+    - /app/logs/hc
+  tags:
+    - hc
+
+- name: unarchive kafka package
+  unarchive: src=/tmp/{{hc_version}}.tar.gz  dest=/app remote_src=yes
+  when: not is_hc_dir.stat.exists
+  tags: 
+    - hc
+
+- name: "copy config.json"
+  template:
+    src: config.json.j2
+    dest: "{{hc_package_dir}}/config.json"
+    owner: xplat
+    group: xplat
+    mode: 0444
+  when: is_hc_dir
+  notify:
+    - restart hc
+
+- file:
+    path: "{{hc_package_dir}}/hc"
+    owner: xplat
+    group: xplat
+    mode: "u=xrw,g=r,o=r"
+
+- name: "Set xplat user and group for directory {{hc_package_dir}}"
+  file: dest={{hc_package_dir}} state=directory owner=xplat group=xplat  recurse=yes
+
+- name: create symlink for hc
+  file: src={{hc_package_dir}} dest={{hc_dir}} state=link force=yes
+  tags:
+    - hc
+
+- name: Create hc service file.
+  template:
+    src: hc.service
+    dest: /etc/systemd/system/hc.service
+    owner: root
+    group: root
+    mode: 0664
+  notify:
+    - reload daemon
+    - restart hc
+  when: ansible_os_family == "qaHat" and ansible_distribution_major_version|int >= 7
+  tags:
+    - hc
+
+- meta: flush_handlers
+
+- name: Verify tardishc apis
+  uri:
+    url: "http://localhost:8091/metrics"
+    method: GET
+    validate_certs: no
+    body_format: json
+    headers:
+      Content-Type: "application/json"
+    status_code: 200
+    return_content: yes
+  register: response
+  until: response is success
+  retries: 15
+  delay: 5
+  tags:
+     - health
+
+- debug: var=response.status
+  tags:
+    - debug
+

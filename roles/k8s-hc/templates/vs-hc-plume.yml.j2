@@ -1,0 +1,34 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{site_role_name}}-plume
+  namespace: {{site_color}}
+spec:
+  gateways:
+  - {{site_role_name}}
+  hosts:
+    - {{plume_dns}}
+{% if site_country == 'US' %}    
+    - {{odphook_gslb}}
+{% endif %}    
+  http:
+  - match:
+    - uri:
+        regex: ^\/.*
+    rewrite:
+      uri: /v2/nolim/raw.kestrel.events.DeviceHostsChangeContext
+    route:
+    - destination:
+        host: {{site_role_name}}
+        port:
+          name: http-{{site_role_name}}
+          number: {{hc_port}}
+        subset: prod
+      weight: {% if prod_weight < 100 %}{{prod_weight |int}}{% else %}{{prod_weight | int - canary_weight | int }}{% endif %}{{''}}
+    - destination:
+        host: {{site_role_name}}
+        port:
+          name: http-{{site_role_name}}
+          number: {{hc_port}}
+        subset: canary
+      weight: {{canary_weight | int}}

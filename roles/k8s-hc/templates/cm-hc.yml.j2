@@ -1,0 +1,74 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{deployment_name}}-conf
+  namespace: {{site_color}}
+data:
+  config.json: |-
+    {
+    "Kafka": {
+        "Brokers": ["{{kafka_servers}}"],
+        "Sarama": {
+            "Net": {
+                "MaxOpenRequests": 5,
+                "KeepAlive": 0
+            },
+            "Producer": {
+                "RequiredAcks": 1,
+                "Compression": "lz4",
+                "Idempotent": false,
+                "Return": {
+                    "Successes": true,
+                    "Errors": true
+                },
+                "Flush": {
+                    "Bytes": 524280,
+                    "Messages": 10000,
+                    "Frequency": 500000000
+                },
+                "Retry": {
+                    "Max": 10
+                }
+            },
+            "ClientID": "hc",
+            "ChannelBufferSize": 4096
+        },
+        "TLS": {
+            "CertFile": "",
+            "KeyFile": "",
+            "CaFile": "",
+            "Insecure": false
+        },
+        "Version": "2.1.0"	
+    },    
+    "Web": {
+        "Server": {
+            "Addr": ":{{hc_port}}",
+            "ReadTimeout": 5000000000,
+            "WriteTimeout": 10000000000,
+            "IdleTimeout": 300000000000
+        },
+        "TLS": {
+            "CertFile": "",
+            "KeyFile": "",
+            "CaFile": ""
+        }
+    },        
+    "MQTT": {
+        "Enable": false
+    },
+    "Redis": {
+            "ClientConfig": {
+            "Addrs": ["{{redisc_host}}:6379", "{{redisc_host}}:6380"],
+            "Password": "{{redis_password}}"
+        },
+        "Keyspace": "quota",
+        "TTL": 86400
+    },
+    "Tracing": {
+        "AppID": "0000000000000001"
+    },
+    "Limit": 20,
+    "XdasTopic": "xdassync"
+    }

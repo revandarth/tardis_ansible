@@ -1,0 +1,160 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: {{site_role_name}}
+  namespace: {{site_color}}
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+{% if site_color != 'green' %}
+  - hosts:
+    - {{hc_region_gslb}}
+    - {{hc_gslb}}
+    - {{xwificonfiguration}}
+    - {{xwificonfig_region_gslb}}
+    - {{xpc_syncreports}}
+    - {{odp_interfacereports}}
+    - {{odp_statusreports}}
+    - {{odp_trafficreports}}
+    - {{odp_radioreports}}
+    - {{odp_wifinotifyreports}}
+    - {{odp_wifiactivereports}}
+    - {{vdsl_reports}}
+    - {{voipdiagnostics_reports}}
+    - {{ltenotify_region_gslb}}
+    - {{ltessnotifyreports_report}}
+    - {{ltegwperiodic_report}}
+    - {{ltebkpperiodic_report}}
+    - {{xpc_rebootreports}}
+    - {{xpc_transactionreports}}    
+    - {{xpc_configreports}} 
+    - {{eth_backhaul_reports}}  
+    - {{xdassyncingress_gslb}}         
+    - {{cujo_threat_pc_dns}}
+    - {{cujo_pt_dns}} 
+    - {{plume_dns}} 
+    - {{meshhook_ci}}
+    - {{cujoswapevents_ci}}
+    - {{telemetryevents}} 
+    port:
+      name: https_gslb
+      number: {{gateway_https_port}}
+      protocol: HTTPS
+    tls:
+      credentialName: lower-env-tls-devops
+      mode: SIMPLE    
+{% endif %}          
+{% if site_color == 'green' and site_country == 'US' %} 
+  - hosts:  
+    - {{hc_gslb}}
+    - {{vdsl_reports}}
+    - {{ltenotify_region_gslb}}
+    - {{ltessnotifyreports_report}}
+    - {{ltegwperiodic_report}}
+    - {{ltebkpperiodic_report}}
+    - {{new_odp_statusreports}}
+    - {{hc_region_gslb}}
+    - {{xdassyncingress_gslb}} 
+    - {{voipdiagnostics_reports}}
+    - {{xwificonfiguration}}
+    - {{xpc_transactionreports}}
+    - {{eth_backhaul_reports}} 
+    - {{odphook_gslb}}
+    - {{odp_interfacereports}}
+    - {{odp_statusreports}}
+    - {{odp_trafficreports}}
+    - {{odp_radioreports}}   
+    - {{odp_region_interfacereports}}
+    - {{odp_region_statusreports}}
+    - {{odp_region_trafficreports}}
+    - {{odp_region_radioreports}}    
+    - {{odp_notificationreports}}
+    - {{meshhook_ci}}
+    - {{cujoswapevents_ci}}
+    - {{odp_region_wifinotifyreports}}
+    - {{odp_wifiactivereports}}
+    - {{xpc_configreports}}
+    - {{telemetryevents}} 
+    port:
+      name: https_gslb
+      number: {{gateway_https_port}}
+      protocol: HTTPS
+    tls:
+      credentialName: prod-env-tls
+      mode: SIMPLE
+  - hosts:
+    - {{cujo_threat_pc_dns}}
+    - {{cujo_pc5mins_dns}}
+    - {{cujo_pt_dns}}
+    - {{aws_cujo_threat_dns}}   
+    port:
+      name: https_gslb_odp_comodo
+      protocol: HTTPS
+    tls:
+      credentialName: prodcomodo-odp-tls
+      mode: SIMPLE
+  - hosts:
+    - {{aws_cujo_fingerprint_dns}}
+    port:
+      name: https_gslb_awsxpc_comodo
+      number: {{gateway_https_port}}
+      protocol: HTTPS
+    tls:
+      credentialName: prodcomodo-awsxpc-tls
+      mode: SIMPLE
+  - hosts:
+    - {{aws_cujo_fingerprint_dns}}
+    port:
+      name: https_gslb_xpc_comodo
+      number: {{gateway_https_port}}
+      protocol: HTTPS
+    tls:
+      credentialName: prodcomodo-xpc-tls
+      mode: SIMPLE
+{% endif %}
+{% if site_color == 'green' and site_country in ['EU','AP'] %}
+  - hosts:  
+    - {{hc_gslb}}
+    - {{vdsl_reports}}
+    - {{ltenotify_region_gslb}}
+    - {{aws_cujo_fingerprint_dns}}
+    - {{cujo_threat_pc_dns}}
+    - {{cujo_pc5mins_dns}}
+    - {{cujo_pt_dns}}
+    - {{aws_cujo_threat_dns}}
+    - {{vdsl_region_gslb}}
+    - {{xdassyncingress_region_gslb}}
+    - {{voipdiagnostics_region_gslb}}
+    - {{xwificonfig_region_gslb}}
+    - {{eth_backhaul_region_gslb}}
+    - {{hc_region_gslb}}
+    - {{xdassyncingress_gslb}} 
+    - {{voipdiagnostics_reports}}
+    - {{xwificonfiguration}}
+    - {{xpc_transactionreports}}
+    - {{eth_backhaul_reports}} 
+    - {{odphook_gslb}}
+    - {{odp_interfacereports}}
+    - {{odp_statusreports}}
+    - {{odp_trafficreports}}
+    - {{odp_radioreports}}   
+    - {{odp_region_interfacereports}}
+    - {{odp_region_statusreports}}
+    - {{odp_region_trafficreports}}
+    - {{odp_region_radioreports}}    
+    - {{odp_notificationreports}}
+    - {{meshhook_ci}}
+    - {{cujoswapevents_ci}}
+    - {{odp_region_wifinotifyreports}}
+    - {{odp_wifiactivereports}}
+    - {{xpc_configreports}}
+    - {{telemetryevents}} 
+    port:
+      name: https_gslb
+      number: {{gateway_https_port}}
+      protocol: HTTPS
+    tls:
+      credentialName: prod-env-tls
+      mode: SIMPLE
+{% endif %}

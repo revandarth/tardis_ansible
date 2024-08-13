@@ -1,0 +1,18 @@
+---
+hc:
+  download_url: 
+    default: "http://yumrepo.sys.darth.net/xpc/x86_64/6/global"
+  hc_version: 
+    default: "hc-09f4271"
+  prev_hc_version: 
+    default: "hc-09f4271"
+  etc_cert_dir:
+    prod: '/etc/{{site_project}}'
+    default: '/etc/{{site_project}}'
+  timestamp: 
+    default: "{{ lookup('pipe', 'date +%Y%m%d%H%M%SZ') }}"
+  AggTopic: 
+    default: 'raw.kestrel.reports.Aggregated'
+  site_region_name:
+    default: "{{ 'asd' if site_region == 'asc' else site_region_name }}"
+

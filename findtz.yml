@@ -1,0 +1,6 @@
+---
+- name: setup and deploy findtz
+  hosts: [findx,findx-eu]
+  become: yes
+  roles:
+      - findtz

@@ -1,0 +1,16 @@
+[Unit]
+Description=HTTP collector
+Wants=network-online.target
+
+[Service]
+ExecStart=/app/hc/hc -config config.json
+WorkingDirectory=/app/hc
+LimitNOFILE=1048576
+User=xplat
+Group=xplat
+SyslogIdentifier=hc
+Restart=always
+
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,30 @@
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  labels:
+    app: {{site_role_name}}
+  name: {{site_role_name}}
+  namespace: {{site_color}}
+spec:
+  host: {{site_role_name}}
+  subsets:
+  - labels:
+      canary: "true"
+    name: canary
+  - labels:
+      canary: "false"
+    name: prod
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_CONN
+    connectionPool:
+      http:
+        idleTimeout: {{http_idletimeout}}
+        maxRequestsPerConnection: {{http_maxRequestsPerConnection}}
+      tcp:
+        maxConnections: {{max_connections}}
+        connectTimeout: {{connectTimeout}}
+
+
+
+

@@ -1,0 +1,89 @@
+---
+hc:
+  download_url: 
+    default: "http://yumrepo.sys.darth.net/xpc/x86_64/6/global"
+  hc_version: 
+    default: "hc-{{versions[site_project][site_color]['hc']['version']}}"
+  hc_buildtime: 
+    default: "{{versions[site_project][site_color]['hc']['buildtime']}}"
+  prev_hc_version: 
+    default: "hc-{{versions[site_project][site_color]['hc']['prev_version']}}"
+  prev_hc_buildtime: 
+    default: "{{versions[site_project][site_color]['hc']['prev_buildtime']}}"
+  etc_cert_dir:
+    prod: '/etc/{{site_project}}'
+    default: '/etc/{{site_project}}'
+  timestamp: 
+    default: "{{ lookup('pipe', 'date +%Y%m%d%H%M%SZ') }}"
+  AggTopic: 
+    default: 'raw.kestrel.reports.Aggregated'
+  site_region_name:
+    default: "{{ 'asd' if site_region == 'asc' else site_region_name }}"
+  qais_password: 
+    default: "{{ cqas['qais_password'][site_color] | default (cqas['qais_password']['default']) }}"
+  hc_port:
+    default: 8080
+  slack_token:
+    stage: "{{cqas['xpc-odp-ansible-bot']['odp-stage']}}"
+    default: "{{cqas['xpc-odp-ansible-bot']['odp-qa']}}"
+  kafka_servers:
+    default: '{{groups[''kafka-'' + site_region_name] | join('':9092","'')}}'
+    devops: '{{groups[''kafka-'' + site_region_name] | join('':9092","'')}}'
+    prod: '{{groups[''kafka-'' + site_region_name + ''-new''] | join('':9092","'')}}'
+  qaisc_host:
+    default: "{{ common_gslbs['qaisc_dns_host'][site_color] | default(common_gslbs['qaisc_dns_host']['default']) }}"  
+
+#################################################################
+  min_replicas:
+    prod: "{% if deploy_name == 'canary' %}1{% elif site_country in ['EU','AP'] %}3{% else %}15{% endif %}"
+    default: "{% if deploy_name == 'canary' %}1{% else %}5{% endif %}"
+  max_replicas:
+    prod: "{% if deploy_name == 'canary' %}1{% else %}200{% endif %}"
+    default: "{% if deploy_name == 'canary' %}1{% else %}20{% endif %}"
+  requests_cpu:
+    prod: "{% if site_country == 'AP' %}100m{% else %}1{% endif %}"
+    default: 1
+  maxlimits_cpu:
+    default: 2
+  requests_memory:
+    prod: "{% if site_country == 'AP' %}100Mi{% else %}500Mi{% endif %}"
+    default: 500Mi
+  maxlimits_memory: 
+    default: 1Gi
+  sidecar_requests_cpu:
+    prod: 2
+    default: 1
+  sidecar_maxlimits_cpu:
+    prod: 3
+    default: 2
+  sidecar_requests_memory:
+    prod: 1Gi
+    default: 500Mi
+  sidecar_maxlimits_memory:
+    prod: 2Gi
+    default: 1Gi
+  sidecar_concurrency:
+    prod: 3
+    default: 2
+  hpa_percentage:
+    default: 65
+  max_connections:
+    default: 1000
+  http_idletimeout:
+    default: 1m
+  pdb_minavailable:
+    default: 1
+  pdb_maxunavailable:
+    default: "10%"
+  http_maxRequestsPerConnection:
+    default: 2000
+  connectTimeout:
+    default: 5s
+  initialdelayseconds:
+    default: 5
+  periodseconds:
+    default: 2
+  failurethreshold:
+    default: 20
+  max_request_bytes:
+    default: 524288 #512KB 

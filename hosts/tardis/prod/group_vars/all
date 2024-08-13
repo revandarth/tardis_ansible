@@ -1,0 +1,12 @@
+---
+site_color: "prod"
+site_role: "{{ ansible_hostname.split('-')[0] }}"
+site_number: "{{ ansible_hostname.split('-')[2] }}"
+site_project: "{{ ansible_hostname.split('-')[0][0:3] }}"
+site_role_name: "{{ ansible_hostname.split('-')[0][3:] }}"
+site_region: "{{ 'e1' if ansible_hostname.split('-')[1] in ['e1a','e1b','e1c','e1d','east'] else 'w2' if ansible_hostname.split('-')[1]  in ['w2a','w2b','w2c','west'] else 'c1' if ansible_hostname.split('-')[1] in ['c1a','c1b','c1c','frnk'] else 'w1' if ansible_hostname.split('-')[1] in ['w1a','w1b','w1c','irln'] else 's1' if ansible_hostname.split('-')[1] in ['s1a','s1b','s1c','sing'] else 's2' if ansible_hostname.split('-')[1] in ['s2a','s2b','s2c','sydn'] else ansible_hostname.split('-')[1]}}"
+site_region_name: "{{ 'east' if ansible_hostname.split('-')[1] in ['e1a','e1b','e1c','e1d'] or site_region == 'e1' else 'west' if ansible_hostname.split('-')[1] in ['w2a','w2b','w2c'] or site_region == 'w2' else 'frnk' if ansible_hostname.split('-')[1] in ['c1a','c1b','c1c'] or site_region == 'c1' else 'irln' if ansible_hostname.split('-')[1] in ['w1a','w1b','w1c'] or site_region == 'w1' else 'sing' if ansible_hostname.split('-')[1] in ['s1a','s1b','s1c'] or site_region == 's1' else 'sydn' if ansible_hostname.split('-')[1] in ['s2a','s2b','s2c'] or site_region == 's2' else ansible_hostname.split('-')[1] }}"
+site_region_az: "{{ ansible_hostname.split('-')[1] }}"
+site_cregion: "{{ 'EAST' if site_region == 'w2' else 'WEST' if site_region == 'e1' else 'IRLN' if site_region == 'c1' else 'FRNK' if site_region == 'w1' else 'SING' if site_region == 's2' else 'SYDN' if site_region == 's1'}}"
+op5_gather_facts: "no"
+site_country: "{{ 'EU' if ansible_hostname.split('-')[1] in ['c1a','c1b','c1c','w1a','w1b','w1c'] or site_region in ['c1', 'w1'] else  'AP' if ansible_hostname.split('-')[1] in ['s1a','s1b','s1c','s2a','s2b','s2c'] or site_region in ['s1', 's2'] else 'US' }}"

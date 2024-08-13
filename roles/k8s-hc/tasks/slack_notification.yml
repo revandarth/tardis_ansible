@@ -1,0 +1,48 @@
+
+- name: Check if uname
+  script: roles/common_files/files/build_name.sh
+  register: build_user
+  delegate_to: localhost
+  become: no
+  tags:
+    - deploy
+
+- name: build_user
+  set_fact:
+    user_name: "{{BUILD_USER_ID}}"
+  when: BUILD_USER_ID is defined and (BUILD_USER_ID != "null" or BUILD_USER_ID != "")
+  tags:
+    - deploy
+
+- name: build_user
+  set_fact:
+    user_name: "Jenkins_CI/CD"
+  when: BUILD_USER_ID is defined and (BUILD_USER_ID == "" or BUILD_USER_ID == "null")
+  tags:
+    - deploy
+
+- name: build_user
+  set_fact:
+    user_name: "{{build_user.stdout}}"
+  when: BUILD_USER_ID is undefined
+  tags:
+    - deploy
+########################################################################################################
+- name: Sending notification message to {{site_color}} channel
+  slack:
+      token: "{{ slack_token }}"
+      msg: "{{deployed_version}} is deployed on {{deploy_name}} k8s {{site_region}} region by {{user_name}}"
+  run_once: true
+  when: 
+    - deployed_version == hc_version
+  tags:
+    - deploy
+
+- name: Sending notification message to {{site_color}} channel
+  slack:
+      token: "{{ slack_token }}"
+      msg: "`Failed` Incorrect version {{deployed_version}} deployed to k8s {{site_region}} expected hc_version: {{hc_version}} by {{user_name}}"
+  when:
+    - deployed_version != hc_version
+  tags:
+    - deploy

@@ -1,0 +1,12 @@
+creds:
+  datadog_key:
+    default: "{{afdadfafdaf' if site_region[0:2] in ['w1','c1'] else 'cfadfafdadfadffd'}}"
+  wifiblaster2:
+    cassandra_user:
+      default: wifiblaster
+    cassandra_pass:
+      default: "{{'***afafafdafd' if site_region in ['w1','c1'] else 'afafadff'}}"
+  artifactory:
+    artifactory_url: 'https://artifactory.tardis.darth.net/artifactory'
+    artifactory_username: 'admin'
+    artifactory_Pass: 'hell@123'
